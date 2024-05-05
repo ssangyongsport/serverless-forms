@@ -9,7 +9,7 @@ const Akismet = require('akismet');
 
 // Akismet setup
 const akismet = new Akismet({
-  key: 'YOUR_API_KEY',
+  key: 'a8df05350f82',
   blog: 'https://ssangyongsports.eu.org'
 });
 
