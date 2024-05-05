@@ -5,6 +5,13 @@ const fs = require('fs');
 const formidable = require("formidable");
 const util = require('util');
 const nodemailer = require('nodemailer');
+const Akismet = require('akismet');
+
+// Akismet setup
+const akismet = new Akismet({
+  key: 'YOUR_API_KEY',
+  blog: 'https://ssangyongsports.eu.org'
+});
 
 // 定義一個包含垃圾關鍵字的陣列
 const spamKeywords = [
@@ -125,11 +132,30 @@ function processFormFieldsIndividual(req, res) {
           return;
         }
 
-        const replyTo = fields['Email'];
-        
-        const subject = fields['Subject'];
-const message = fields['message'];
-        sendMail(util.inspect(fields), replyTo, subject, message);
+        // Check for spam using Akismet
+        akismet.checkSpam({
+          user_ip: req.socket.remoteAddress,
+          user_agent: req.headers['user-agent'],
+          referrer: req.headers.referer,
+          comment_type: 'contact-form',
+          comment_author: fields['Name'],
+          comment_author_email: fields['Email'],
+          comment_content: fields['message']
+        }, function (err, spam) {
+          if (err) {
+            console.error(err);
+          } else if (spam) {
+            console.log('Spam detected!');
+            res.writeHead(403, { 'Content-Type': 'text/plain' });
+            res.end('Ha ha, we caught you! Please stop sending this spam contact.');
+            return;
+          } else {
+            const replyTo = fields['Email'];
+            const subject = fields['Subject'];
+            const message = fields['message'];
+            sendMail(util.inspect(fields), replyTo, subject, message);
+          }
+        });
       }
 
       res.writeHead(302, {
@@ -155,7 +181,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-function sendMail(fields, replyTo, message, subject, clientIP) {
+function sendMail(fields, replyTo, subject, message) {
   const mailOptions = {
     from: process.env.FROM || 'Email form data bot <no-reply@no-email.com>',
     to: [process.env.TO, process.env.TO2],
