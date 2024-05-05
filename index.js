@@ -5,18 +5,15 @@ const fs = require('fs');
 const formidable = require("formidable");
 const util = require('util');
 const nodemailer = require('nodemailer');
-const Akismet = require('akismet');
-
-// Akismet setup
-const akismet = new Akismet({
-  key: 'a8df05350f82',
-  blog: 'https://ssangyongsports.eu.org'
+const akismet = require('akismet').client({
+  key: process.env.AKISMET_KEY, // 從環境變數獲取 Akismet API 金鑰
+  blog: 'https://ssangyongsports.eu.org' // 你的網站網址
 });
 
 // 定義一個包含垃圾關鍵字的陣列
 const spamKeywords = [
   'Hi, i writing about your   price',
-  'Aloha,   write about your the price', 
+  'Aloha,   write about your the price',
   'Hi, i write about   the price for reseller',
   '幹你娘',
   'Hello  i wrote about your   price for reseller',
@@ -25,7 +22,7 @@ const spamKeywords = [
 ];
 
 // 定義一個包含需要過濾選項的陣列
-const blockedOptions = ['？']; 
+const blockedOptions = ['？'];
 
 // 使用正則表達式建立黑名單模式
 const spamRegex = new RegExp(spamKeywords.join('|'), 'i');
@@ -81,7 +78,7 @@ function processFormFieldsIndividual(req, res) {
           res.writeHead(403, {
             'Content-Type': 'text/html; charset=utf-8'
           });
-          // 呈現HTML畫面
+          // 呈現 HTML 畫面
           res.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -93,7 +90,7 @@ function processFormFieldsIndividual(req, res) {
       font-family: Arial, sans-serif;
       background-color: #f5f5f5;
       display: flex;
-      justify-content: center;
+      justify -content: center;
       align-items: center;
       height: 100vh;
       margin: 0;
@@ -132,36 +129,33 @@ function processFormFieldsIndividual(req, res) {
           return;
         }
 
-        // Check for spam using Akismet
-        akismet.checkSpam({
-          user_ip: req.socket.remoteAddress,
-          user_agent: req.headers['user-agent'],
-          referrer: req.headers.referer,
-          comment_type: 'contact-form',
-          comment_author: fields['Name'],
-          comment_author_email: fields['Email'],
-          comment_content: fields['message']
-        }, function (err, spam) {
-          if (err) {
-            console.error(err);
-          } else if (spam) {
-            console.log('Spam detected!');
+        akismet.checkEntry({
+          user_ip: clientIP, // 用戶 IP
+          user_agent: req.headers['user-agent'], // 用戶瀏覽器資訊
+          referrer: referer, // 來源網址
+          permalink: '', // 可選,郵件永久連結
+          comment_type: 'contact-form', // 可選,註解類型
+          comment_author: fields['Email'], // 可選,評論者名稱
+          comment_author_email: fields['Email'], // 可選,評論者 Email
+          comment_author_url: '', // 可選,評論者網址
+          comment_content: fields['message'] // 評論內容
+        }, function(err, isSpam) {
+          if (isSpam) {
+            console.log('Akismet detected spam!');
             res.writeHead(403, { 'Content-Type': 'text/plain' });
-            res.end('Ha ha, we caught you! Please stop sending this spam contact.');
+            res.end('Akismet has detected this message as spam. Please try again later.');
             return;
           } else {
+            // 發送郵件
             const replyTo = fields['Email'];
             const subject = fields['Subject'];
             const message = fields['message'];
             sendMail(util.inspect(fields), replyTo, subject, message);
+            res.writeHead(302, { 'Location': 'https://ssangyongsports.eu.org/thanks' });
+            res.end();
           }
         });
       }
-
-      res.writeHead(302, {
-        'Location': 'https://ssangyongsports.eu.org/thanks'
-      });
-      res.end();
     });
   } else {
     res.writeHead(403, {
