@@ -5,6 +5,10 @@ const fs = require('fs');
 const formidable = require("formidable");
 const util = require('util');
 const nodemailer = require('nodemailer');
+const akismet = require('akismet');
+
+// Define Akismet client instance
+const akismetClient = new akismet.Client('a8df05350f82', 'https://ssangyongsports.eu.org);
 
 // 定義一個包含垃圾關鍵字的陣列
 const spamKeywords = [
@@ -68,14 +72,32 @@ function processFormFieldsIndividual(req, res) {
           return;
         }
 
-        // 檢查主旨和內容是否包含垃圾關鍵字
-        if (spamRegex.test(fields['Subject']) || spamRegex.test(fields['message']) || optionsRegex.test(fields['_email.from'])) {
-          console.log('Spam or blocked option detected!');
-          res.writeHead(403, {
-            'Content-Type': 'text/html; charset=utf-8'
-          });
-          // 呈現HTML畫面
-          res.write(`<!DOCTYPE html>
+        // Check if the form submission is spam using Akismet
+        akismetClient.checkSpam({
+          user_ip: req.socket.remoteAddress,
+          user_agent: req.headers['user-agent'],
+          referrer: req.headers.referer,
+          comment_type: 'contact-form',
+          comment_author: fields['Name'],
+          comment_author_email: fields['Email'],
+          comment_content: fields['message']
+        }, function (err, spam) {
+          if (err) {
+            console.error(err);
+          } else if (spam) {
+            console.log('Spam detected by Akismet!');
+            res.writeHead(403, { 'Content-Type': 'text/plain' });
+            res.end('Spam detected. Please try again.');
+            return;
+          } else {
+            // 檢查主旨和內容是否包含垃圾關鍵字
+            if (spamRegex.test(fields['Subject']) || spamRegex.test(fields['message']) || optionsRegex.test(fields['_email.from'])) {
+              console.log('Spam or blocked option detected!');
+              res.writeHead(403, {
+                'Content-Type': 'text/html; charset=utf-8'
+              });
+              // 呈現HTML畫面
+              res.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -121,15 +143,17 @@ function processFormFieldsIndividual(req, res) {
   </div>
 </body>
 </html>`);
-          res.end();
-          return;
-        }
+              res.end();
+              return;
+            }
 
-        const replyTo = fields['Email'];
+            const replyTo = fields['Email'];
 
-        const subject = fields['Subject'];
-const message = fields['message'];
-        sendMail(util.inspect(fields), replyTo, subject, message);
+            const subject = fields['Subject'];
+            const message = fields['message'];
+            sendMail(util.inspect(fields), replyTo, subject, message);
+          }
+        });
       }
 
       res.writeHead(302, {
