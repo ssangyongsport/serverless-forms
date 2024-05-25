@@ -137,6 +137,11 @@ function processFormFieldsIndividual(req, res) {
   </style>
 </head>
 <body>
+<!-- START Formbricks Surveys -->
+<script type="text/javascript">
+!function(){var t=document.createElement("script");t.type="text/javascript",t.async=!0,t.src="https://unpkg.com/@formbricks/js@^1.6.3/dist/index.umd.js";var e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(t,e),setTimeout(function(){window.formbricks.init({environmentId: "clufhpjdo000b875uaq2alewl", apiHost: "https://feedback.ssangyongsports.eu.org"})},500)}();
+</script>
+<!-- END Formbricks Surveys -->
   <div class="error-container">
      <h1>禁止垃圾訊息</h1>
     <p>抱歉，您的消息似乎包含垃圾郵件內容或已被封鎖的選項，因此已被封鎖。更多信息：<a href="https://ssangyongsports.eu.org/blog/ban" target="_blank">https://ssangyongsports.eu.org/blog/ban</a></p>
